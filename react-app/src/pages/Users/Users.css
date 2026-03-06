@@ -1,0 +1,84 @@
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.users-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.users-search {
+  position: relative;
+}
+
+.users-search .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+}
+
+.users-search .search-input {
+  padding-left: 34px;
+}
+
+.users-table-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: left;
+  font-size: 14px;
+}
+
+.users-table thead th {
+  background: rgba(0, 0, 0, 0.02);
+  font-weight: 600;
+}
+
+.users-empty {
+  padding: 18px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.actions-col {
+  width: 220px;
+  text-align: right;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pill.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: rgb(16, 185, 129);
+}
+
+.status-pill.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(239, 68, 68);
+}

@@ -1,0 +1,115 @@
+.admin-mgmt-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-mgmt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-mgmt-search {
+  position: relative;
+}
+
+.admin-mgmt-search .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+}
+
+.admin-mgmt-search .search-input {
+  padding-left: 34px;
+}
+
+.admin-mgmt-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-mgmt-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.admin-mgmt-card .card-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.admin-mgmt-card .card-subtitle {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.promote-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-mgmt-table-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-mgmt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-mgmt-table th,
+.admin-mgmt-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: left;
+  font-size: 14px;
+}
+
+.admin-mgmt-table thead th {
+  background: rgba(0, 0, 0, 0.02);
+  font-weight: 600;
+}
+
+.admin-mgmt-empty {
+  padding: 18px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.actions-col {
+  width: 220px;
+  text-align: right;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pill.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: rgb(16, 185, 129);
+}
+
+.status-pill.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(239, 68, 68);
+}

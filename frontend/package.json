@@ -1,0 +1,11 @@
+{
+  "name": "medical-inventory-frontend-alias",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npm --prefix ../react-app start",
+    "build": "npm --prefix ../react-app run build",
+    "test": "npm --prefix ../react-app test",
+    "install": "npm --prefix ../react-app install"
+  }
+}

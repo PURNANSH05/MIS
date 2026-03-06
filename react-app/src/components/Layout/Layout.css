@@ -1,0 +1,59 @@
+/* Layout Styles - Professional Medical Theme */
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.layout .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition);
+}
+
+html[data-sidebar-collapsed="true"] .layout .main-content {
+  margin-left: var(--sidebar-width-collapsed);
+}
+
+.layout .main-content.sidebar-collapsed {
+  margin-left: var(--sidebar-width-collapsed);
+}
+
+.layout .content {
+  flex: 1;
+  padding: var(--space-6);
+  overflow-y: auto;
+  background-color: var(--background);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .layout .main-content {
+    margin-left: 0;
+  }
+  
+  .layout .content {
+    padding: var(--space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .layout .content {
+    padding: var(--space-3);
+  }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .layout {
+  background-color: var(--gray-900);
+}
+
+[data-theme="dark"] .layout .main-content {
+  background-color: var(--gray-900);
+}
+
+[data-theme="dark"] .layout .content {
+  background-color: var(--gray-900);
+}

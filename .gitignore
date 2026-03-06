@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.log
+.env
+.venv/
+venv/
+ENV/
+
+# Node
+node_modules/
+react-app/node_modules/
+frontend/node_modules/
+
+# Build outputs
+react-app/build/
+dist/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local DB / uploads (adjust if needed)
+*.sqlite
+*.db
