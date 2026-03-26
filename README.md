@@ -1,53 +1,33 @@
 # Medical Inventory System
 
-Medical Inventory System is a FastAPI + React application for managing medical stock, locations, suppliers, users, alerts, and reports.
+FastAPI + React medical inventory management system.
 
-## Structure
-
-- `backend/` - FastAPI backend, database models, auth, schemas, and utility scripts
-- `react-app/` - React frontend
-- `start.py` - Python launcher for backend + frontend
-- `run.ps1` - PowerShell launcher
-- `START_COMPLETE.bat` - Windows batch launcher
-
-## Main Stack
-
-- Backend: FastAPI, SQLAlchemy, SQLite/PostgreSQL support
-- Frontend: React 18, React Router, Axios, React Toastify
-
-## Start The App
-
-### Option 1: Windows batch
-
-Run:
-
-```bat
-START_COMPLETE.bat
-```
-
-### Option 2: PowerShell
-
-Run:
+## Quick Start
 
 ```powershell
-.\run.ps1
+python start.py
 ```
 
-### Option 3: Manual
+## Access Points
 
-Backend:
+- **Frontend:** http://127.0.0.1:3000
+- **Backend API:** http://127.0.0.1:8000
+- **API Docs:** http://127.0.0.1:8000/docs
+
+## Project Structure
+
+- **backend/** - FastAPI backend
+- **frontend/** - React application
+
+## Alternative Start Methods
 
 ```powershell
-cd backend
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
+.\run.ps1        # PowerShell
+START_COMPLETE.bat  # Windows Batch
 ```
 
-Frontend:
+See detailed documentation in `backend/README.md` and `frontend/README.md`
 
-```powershell
-cd react-app
-npm start
-```
 
 ## URLs
 

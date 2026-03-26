@@ -41,7 +41,7 @@ def main() -> int:
             return None
         return None
 
-    backend_file = os.path.join(backend_dir, "main.py")
+    backend_file = os.path.join(backend_dir, "app", "main.py")
     if not os.path.exists(backend_file):
         print(f"ERROR: {backend_file} not found")
         return 1
@@ -74,7 +74,7 @@ def main() -> int:
                 "--port",
                 "8000",
             ],
-            cwd=backend_dir,
+            cwd=os.path.join(backend_dir, "app"),
         )
     except KeyboardInterrupt:
         return 0

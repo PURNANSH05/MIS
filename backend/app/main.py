@@ -16,11 +16,11 @@ from dotenv import load_dotenv
 from login_tracker import LoginTracker
 
 # Add backend directory to path for imports
-backend_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, backend_dir)
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(backend_dir, 'app'))
 
-# Load environment variables from backend directory
-env_path = os.path.join(backend_dir, '.env')
+# Load environment variables from config directory
+env_path = os.path.join(backend_dir, 'config', '.env')
 load_dotenv(dotenv_path=env_path)
 
 from database import (

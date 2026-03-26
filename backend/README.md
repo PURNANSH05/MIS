@@ -1,52 +1,147 @@
-"""
-Medical Inventory System - Backend Setup Instructions
+# Backend - FastAPI Medical Inventory System
 
-Prerequisites:
-- Python 3.8+
-- pip
-- PostgreSQL 12+ (running and configured)
-- .env file with PostgreSQL credentials
+FastAPI backend for Medical Inventory Management System.
 
-Setup Steps:
+## Quick Start
 
-1. Configure PostgreSQL:
-   - Create database: medical_inventory
-   - Create user: mis_user with password
-   - Grant permissions (see SETUP_GUIDE.md Step 0)
+```powershell
+# From root directory
+cd backend
+pip install -r requirements.txt
+python start.py
+```
 
-2. Create .env file:
-   cp .env.example .env
-   
-   Edit .env with your PostgreSQL credentials:
-   DB_USER=mis_user
-   DB_PASSWORD=your_password
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=medical_inventory
+Backend runs on **http://127.0.0.1:8000**
 
-3. Navigate to backend folder:
-   cd backend
+## Project Structure
 
-4. Create virtual environment (recommended):
-   python -m venv venv
-   
-   On Windows:
-   venv\Scripts\activate
-   
-   On Linux/Mac:
-   source venv/bin/activate
+```
+backend/
+├── app/              Core FastAPI application
+│   ├── main.py       FastAPI entry point & routes
+│   ├── auth.py       Authentication & JWT tokens
+│   ├── database.py   SQLAlchemy ORM models
+│   ├── schemas.py    Pydantic validation schemas
+│   └── login_tracker.py  Session tracking
+│
+├── scripts/          Database & utility scripts
+│   ├── init_database.py      Initialize database
+│   ├── seed_data_complete.py Seed sample data
+│   ├── reset_db.py           Reset database
+│   └── ...
+│
+├── tests/            Test suite
+│   ├── test_login.py
+│   ├── test_inventory.py
+│   └── ...
+│
+├── config/           Configuration files
+│   ├── .env          Environment variables
+│   ├── nginx.conf    Nginx configuration
+│   └── medical_inventory.db  SQLite database
+│
+├── requirements.txt  Python dependencies
+├── start.py          Backend startup script
+└── README.md         This file
+```
 
-5. Install dependencies:
-   pip install -r requirements.txt
+## Setup Instructions
 
-6. Initialize database:
-   python -c "from database import Base, engine; Base.metadata.create_all(bind=engine); print('Database tables created')"
+### 1. Install Dependencies
 
-7. Create seed data:
-   python seed_data.py
+```powershell
+pip install -r requirements.txt
+```
 
-8. Run the server:
-   python main.py
+### 2. Configure Environment
+
+Copy and edit `.config/.env`:
+
+```env
+DB_TYPE=sqlite                # or postgresql
+DEBUG=True
+ENVIRONMENT=development
+ALLOWED_ORIGINS=*
+```
+
+For PostgreSQL, set:
+```env
+DB_TYPE=postgresql
+DB_USER=postgres
+DB_PASSWORD=password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=medical_inventory
+```
+
+### 3. Initialize Database
+
+```powershell
+cd scripts
+python init_database.py
+python seed_data_complete.py
+cd ..
+```
+
+### 4. Run Backend
+
+```powershell
+python start.py
+```
+
+## API Documentation
+
+- **Swagger UI:** http://127.0.0.1:8000/docs
+- **ReDoc:** http://127.0.0.1:8000/redoc
+
+## Common Commands
+
+```powershell
+# Run tests
+pytest tests/ -v
+
+# Reset database
+python scripts/reset_db.py
+
+# Run specific test
+pytest tests/test_login.py -v
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `main.py` | FastAPI app with all endpoints |
+| `auth.py` | JWT tokens, password hashing, permissions |
+| `database.py` | SQLAlchemy models & engine |
+| `schemas.py` | Request/response validation |
+| `login_tracker.py` | Session & login tracking |
+
+## Database Support
+
+- **Development:** SQLite (config/medical_inventory.db)
+- **Production:** PostgreSQL
+
+Switch in `config/.env` via `DB_TYPE` variable.
+
+## Troubleshooting
+
+**Port 8000 in use:**
+```powershell
+netstat -ano | findstr :8000
+taskkill /F /PID <pid>
+```
+
+**Module not found:**
+```powershell
+pip install -r requirements.txt
+```
+
+**Database locked:**
+```powershell
+python scripts/reset_db.py
+```
+
 
 The API will be available at: http://localhost:8000
 API Documentation: http://localhost:8000/docs

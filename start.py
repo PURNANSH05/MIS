@@ -29,8 +29,8 @@ def _project_python(root_dir: str) -> str:
 
 def main() -> int:
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    backend_dir = os.path.join(root_dir, "backend")
-    frontend_dir = os.path.join(root_dir, "react-app")
+    backend_dir = os.path.join(root_dir, "backend", "app")
+    frontend_dir = os.path.join(root_dir, "frontend")
     python_executable = _project_python(root_dir)
 
     backend_port = 8000

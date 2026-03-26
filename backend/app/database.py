@@ -7,7 +7,10 @@ import enum
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables from config directory
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(backend_dir, 'config', '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Database Configuration - Support both SQLite (development) and PostgreSQL (production)
 DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
@@ -32,7 +35,7 @@ if DB_TYPE == "postgresql":
     )
 else:
     # SQLite Database Configuration (Development - No PostgreSQL needed!)
-    db_path = os.path.join(os.path.dirname(__file__), "medical_inventory.db")
+    db_path = os.path.join(backend_dir, "config", "medical_inventory.db")
     DATABASE_URL = f"sqlite:///{db_path}"
     engine = create_engine(
         DATABASE_URL,
