@@ -432,9 +432,10 @@ class PurchaseOrderResponse(PurchaseOrderBase):
 class AuditLogResponse(BaseModel):
     id: int
     user_id: Optional[int] = None
+    username: Optional[str] = None
     action: str
     module: str
-    record_id: int
+    record_id: Optional[int] = None
     old_value: Optional[str] = None
     new_value: Optional[str] = None
     status: str

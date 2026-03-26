@@ -120,24 +120,33 @@ ROLE_PERMISSIONS = {
         "create_user", "update_user", "delete_user", "list_users",
         "manage_roles", "change_user_password",
         # Item Management
-        "create_item", "update_item", "delete_item", "list_items",
+        "create_item", "update_item", "delete_item", "view_items", "list_items",
         # Location Management
         "create_location", "update_location", "delete_location", "list_locations",
         # Stock Operations
         "receive_stock", "issue_stock", "transfer_stock", "dispose_stock",
-        "adjust_stock", "view_stock_movements",
+        "adjust_stock", "approve_adjustment", "view_stock_movements",
         # Reporting
         "view_stock_report", "view_expiry_report", "view_movement_report",
         "view_audit_logs", "export_reports",
         # System
-        "system_config", "manage_alerts", "view_alerts"
+        "system_config", "manage_alerts", "acknowledge_alerts", "view_alerts"
     ],
     "Admin": [
-        # User Management (limited admin)
+        # User Management
         "create_user", "update_user", "delete_user", "list_users",
         "manage_roles", "change_user_password",
-        # Audit visibility (optional but useful for admins)
+        # Item and stock management
+        "create_item", "update_item", "delete_item", "view_items", "list_items",
+        "create_location", "update_location", "delete_location", "list_locations",
+        "receive_stock", "issue_stock", "transfer_stock", "dispose_stock",
+        "adjust_stock", "approve_adjustment", "view_stock_movements",
+        # Reporting and audit
+        "view_stock_report", "view_expiry_report", "view_movement_report",
         "view_audit_logs",
+        "export_reports",
+        # Alerts
+        "manage_alerts", "acknowledge_alerts", "view_alerts",
     ],
     "Inventory Manager": [
         # Item Management
@@ -146,7 +155,7 @@ ROLE_PERMISSIONS = {
         "create_location", "update_location", "list_locations",
         # Stock Operations
         "receive_stock", "issue_stock", "transfer_stock", "dispose_stock",
-        "approve_adjustment", "view_stock_movements",
+        "adjust_stock", "approve_adjustment", "view_stock_movements",
         # Reporting
         "view_stock_report", "view_expiry_report", "view_movement_report",
         "view_audit_logs", "export_reports",
@@ -187,13 +196,31 @@ ROLE_PERMISSIONS = {
 }
 
 
+ROLE_NAME_ALIASES = {
+    "super admin": "Super Admin",
+    "admin": "Admin",
+    "inventory manager": "Inventory Manager",
+    "pharmacist": "Pharmacist",
+    "storekeeper": "Storekeeper",
+    "auditor": "Auditor",
+}
+
+
+def normalize_role_name(role: Optional[str]) -> str:
+    """Normalize stored role names so permission checks are case-tolerant."""
+    if not role:
+        return ""
+    return ROLE_NAME_ALIASES.get(role.strip().lower(), role.strip())
+
+
 def has_permission(role: str, permission: str) -> bool:
     """Check if role has specific permission"""
-    if role not in ROLE_PERMISSIONS:
+    normalized_role = normalize_role_name(role)
+    if normalized_role not in ROLE_PERMISSIONS:
         return False
-    return permission in ROLE_PERMISSIONS[role]
+    return permission in ROLE_PERMISSIONS[normalized_role]
 
 
 def get_role_permissions(role: str) -> list:
     """Get all permissions for a role"""
-    return ROLE_PERMISSIONS.get(role, [])
+    return ROLE_PERMISSIONS.get(normalize_role_name(role), [])

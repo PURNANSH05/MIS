@@ -20,15 +20,32 @@ def _pick_free_port(preferred: int) -> int:
     return preferred
 
 
+def _project_python(root_dir: str) -> str:
+    candidate = os.path.join(root_dir, ".venv", "Scripts", "python.exe")
+    if os.path.exists(candidate):
+        return candidate
+    return sys.executable
+
+
 def main() -> int:
     root_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.join(root_dir, "backend")
     frontend_dir = os.path.join(root_dir, "react-app")
+    python_executable = _project_python(root_dir)
 
     backend_port = 8000
     frontend_port = _pick_free_port(3000)
 
-    backend_cmd = [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--host", "127.0.0.1", "--port", str(backend_port)]
+    backend_cmd = [
+        python_executable,
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(backend_port),
+    ]
     frontend_cmd = ["npm", "start"]
 
     backend_env = os.environ.copy()
@@ -36,9 +53,17 @@ def main() -> int:
     frontend_env["PORT"] = str(frontend_port)
 
     print(f"Starting backend on http://127.0.0.1:{backend_port}")
+    print(f"Using Python interpreter: {python_executable}")
     backend_proc = subprocess.Popen(backend_cmd, cwd=backend_dir, env=backend_env)
 
-    time.sleep(1.0)
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        if backend_proc.poll() is not None:
+            print(f"Backend stopped with code {backend_proc.returncode}")
+            return backend_proc.returncode or 1
+        if not _is_port_free(backend_port):
+            break
+        time.sleep(0.5)
 
     print(f"Starting frontend on http://localhost:{frontend_port}")
     frontend_proc = subprocess.Popen(frontend_cmd, cwd=frontend_dir, env=frontend_env, shell=True)

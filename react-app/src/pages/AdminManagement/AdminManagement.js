@@ -1,28 +1,147 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FiPlus, FiRefreshCw, FiSearch, FiUser, FiX, FiKey, FiTrash2, FiUserCheck } from 'react-icons/fi';
+import {
+  FiEdit3,
+  FiFilter,
+  FiKey,
+  FiLayers,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+  FiTrash2,
+  FiX,
+} from 'react-icons/fi';
 import { usersAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import './AdminManagement.css';
 
+const ROLE_PERMISSION_GROUPS = {
+  'Super Admin': {
+    label: 'Full system access',
+    permissions: [
+      'create_user', 'update_user', 'delete_user', 'list_users',
+      'manage_roles', 'change_user_password',
+      'create_item', 'update_item', 'delete_item', 'view_items', 'list_items',
+      'create_location', 'update_location', 'delete_location', 'list_locations',
+      'receive_stock', 'issue_stock', 'transfer_stock', 'dispose_stock',
+      'adjust_stock', 'approve_adjustment', 'view_stock_movements',
+      'view_stock_report', 'view_expiry_report', 'view_movement_report',
+      'view_audit_logs', 'export_reports',
+      'system_config', 'manage_alerts', 'acknowledge_alerts', 'view_alerts',
+    ],
+  },
+  Admin: {
+    label: 'Administrative operations',
+    permissions: [
+      'create_user', 'update_user', 'delete_user', 'list_users',
+      'manage_roles', 'change_user_password',
+      'create_item', 'update_item', 'delete_item', 'view_items', 'list_items',
+      'create_location', 'update_location', 'delete_location', 'list_locations',
+      'receive_stock', 'issue_stock', 'transfer_stock', 'dispose_stock',
+      'adjust_stock', 'approve_adjustment', 'view_stock_movements',
+      'view_stock_report', 'view_expiry_report', 'view_movement_report',
+      'view_audit_logs', 'export_reports',
+      'manage_alerts', 'acknowledge_alerts', 'view_alerts',
+    ],
+  },
+  'Inventory Manager': {
+    label: 'Inventory control and reports',
+    permissions: [
+      'create_item', 'update_item', 'view_items', 'list_items',
+      'create_location', 'update_location', 'list_locations',
+      'receive_stock', 'issue_stock', 'transfer_stock', 'dispose_stock',
+      'adjust_stock', 'approve_adjustment', 'view_stock_movements',
+      'view_stock_report', 'view_expiry_report', 'view_movement_report',
+      'view_audit_logs', 'export_reports',
+      'view_alerts', 'acknowledge_alerts',
+    ],
+  },
+  Pharmacist: {
+    label: 'Dispensing and stock visibility',
+    permissions: [
+      'view_items', 'list_items',
+      'receive_stock', 'issue_stock', 'view_stock_movements',
+      'view_stock_report', 'view_expiry_report', 'export_reports',
+      'view_alerts',
+    ],
+  },
+  Storekeeper: {
+    label: 'Warehouse handling',
+    permissions: [
+      'view_items', 'list_items',
+      'receive_stock', 'issue_stock', 'transfer_stock', 'view_stock_movements',
+      'view_stock_report', 'export_reports',
+      'view_alerts',
+    ],
+  },
+  Auditor: {
+    label: 'Read-only compliance review',
+    permissions: [
+      'view_items', 'list_items', 'list_locations',
+      'view_stock_report', 'view_expiry_report', 'view_movement_report',
+      'view_audit_logs', 'export_reports', 'view_alerts',
+    ],
+  },
+};
+
+const ROLE_ORDER = ['Super Admin', 'Admin', 'Inventory Manager', 'Pharmacist', 'Storekeeper', 'Auditor'];
+
+const getRoleName = (user) => (typeof user?.role === 'string' ? user.role : user?.role?.name) || 'Unknown';
+
+const ACCESS_SECTIONS = [
+  {
+    key: 'user_admin',
+    title: 'User Administration',
+    description: 'Create, update, secure, and deactivate user accounts.',
+    permissions: ['create_user', 'update_user', 'delete_user', 'list_users', 'manage_roles', 'change_user_password'],
+  },
+  {
+    key: 'inventory_control',
+    title: 'Inventory Control',
+    description: 'Maintain items, locations, and operational stock actions.',
+    permissions: [
+      'create_item', 'update_item', 'delete_item', 'view_items', 'list_items',
+      'create_location', 'update_location', 'delete_location', 'list_locations',
+      'receive_stock', 'issue_stock', 'transfer_stock', 'dispose_stock', 'adjust_stock', 'approve_adjustment', 'view_stock_movements',
+    ],
+  },
+  {
+    key: 'reporting_audit',
+    title: 'Reporting and Audit',
+    description: 'Review stock, expiry, movement, and audit evidence.',
+    permissions: ['view_stock_report', 'view_expiry_report', 'view_movement_report', 'view_audit_logs', 'export_reports'],
+  },
+  {
+    key: 'alerts_system',
+    title: 'Alerts and System',
+    description: 'Handle alerts and higher-level system administration.',
+    permissions: ['system_config', 'manage_alerts', 'acknowledge_alerts', 'view_alerts'],
+  },
+];
+
 const AdminManagement = () => {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission, getUserRole, hasRole } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
-
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [resetUser, setResetUser] = useState(null);
+  const [editUser, setEditUser] = useState(null);
 
   const [createForm, setCreateForm] = useState({
     username: '',
     email: '',
     password: '',
+    role_id: '',
   });
 
   const [resetForm, setResetForm] = useState({
@@ -30,28 +149,51 @@ const AdminManagement = () => {
     confirm_password: '',
   });
 
-  const [promoteUserId, setPromoteUserId] = useState('');
+  const [editForm, setEditForm] = useState({
+    email: '',
+    role_id: '',
+    is_active: true,
+  });
 
-  const adminRoleId = useMemo(() => {
-    const r = (roles || []).find((x) => x?.name === 'Admin');
-    return r?.id || null;
+  const canCreateUsers = hasPermission('create_user');
+  const canUpdateUsers = hasPermission('update_user');
+  const canDeleteUsers = hasPermission('delete_user');
+  const canResetPassword = hasPermission('change_user_password');
+  const canManageRoles = hasPermission('manage_roles') || canUpdateUsers;
+  const currentRole = getUserRole();
+  const isSuperAdmin = hasRole('Super Admin');
+
+  const sortedRoles = useMemo(() => {
+    const priority = new Map(ROLE_ORDER.map((name, index) => [name, index]));
+    return [...roles].sort((a, b) => {
+      const aOrder = priority.has(a.name) ? priority.get(a.name) : 999;
+      const bOrder = priority.has(b.name) ? priority.get(b.name) : 999;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.name.localeCompare(b.name);
+    });
   }, [roles]);
 
-  const superAdminRoleId = useMemo(() => {
-    const r = (roles || []).find((x) => x?.name === 'Super Admin');
-    return r?.id || null;
-  }, [roles]);
+  const roleMap = useMemo(() => new Map(sortedRoles.map((role) => [role.id, role])), [sortedRoles]);
 
-  const fetchData = async () => {
+  const fetchData = async (showRefreshState = false) => {
     try {
-      setLoading(true);
+      if (showRefreshState) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const [usersRes, rolesRes] = await Promise.all([usersAPI.getUsers(), usersAPI.getRoles()]);
-      setUsers(Array.isArray(usersRes?.data) ? usersRes.data : []);
-      setRoles(Array.isArray(rolesRes?.data) ? rolesRes.data : []);
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Failed to load admin management data');
+      const nextUsers = Array.isArray(usersRes?.data) ? usersRes.data : [];
+      const nextRoles = Array.isArray(rolesRes?.data) ? rolesRes.data : [];
+
+      setUsers(nextUsers);
+      setRoles(nextRoles);
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to load role access data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -60,58 +202,100 @@ const AdminManagement = () => {
   }, []);
 
   useEffect(() => {
-    if (!promoteUserId) {
-      const first = (users || []).find(
-        (u) =>
-          u?.role?.name !== 'Admin' &&
-          u?.role?.name !== 'Super Admin' &&
-          u?.role_id !== adminRoleId &&
-          u?.role_id !== superAdminRoleId
-      );
-      if (first) setPromoteUserId(String(first.id));
+    if (!selectedRoleId && sortedRoles.length) {
+      setSelectedRoleId(String(sortedRoles[0].id));
     }
-  }, [users, adminRoleId, superAdminRoleId, promoteUserId]);
+  }, [selectedRoleId, sortedRoles]);
 
-  const adminUsers = useMemo(() => {
-    const base = (users || []).filter(
-      (u) =>
-        u?.role?.name === 'Admin' ||
-        (adminRoleId && u?.role_id === adminRoleId) ||
-        u?.role?.name === 'Super Admin' ||
-        (superAdminRoleId && u?.role_id === superAdminRoleId)
-    );
-    const q = search.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((u) => {
-      const hay = [u.username, u.email].filter(Boolean).join(' ').toLowerCase();
-      return hay.includes(q);
+  const usersWithResolvedRole = useMemo(
+    () =>
+      users.map((entry) => ({
+        ...entry,
+        resolvedRoleName: getRoleName(entry) || roleMap.get(entry.role_id)?.name || 'Unknown',
+      })),
+    [roleMap, users]
+  );
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return usersWithResolvedRole.filter((entry) => {
+      if (roleFilter && entry.resolvedRoleName !== roleFilter) return false;
+      if (!query) return true;
+      const haystack = [entry.username, entry.email, entry.resolvedRoleName].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
     });
-  }, [users, search, adminRoleId, superAdminRoleId]);
+  }, [roleFilter, search, usersWithResolvedRole]);
 
-  const nonAdminUsers = useMemo(() => {
-    return (users || []).filter(
-      (u) =>
-        u?.role?.name !== 'Admin' &&
-        u?.role?.name !== 'Super Admin' &&
-        (!adminRoleId || u?.role_id !== adminRoleId) &&
-        (!superAdminRoleId || u?.role_id !== superAdminRoleId)
-    );
-  }, [users, adminRoleId, superAdminRoleId]);
+  const roleCards = useMemo(
+    () =>
+      sortedRoles.map((role) => {
+        const usersInRole = usersWithResolvedRole.filter((entry) => entry.role_id === role.id || entry.resolvedRoleName === role.name);
+        const activeUsers = usersInRole.filter((entry) => entry.is_active).length;
+        const permissions = ROLE_PERMISSION_GROUPS[role.name]?.permissions || [];
+        return {
+          ...role,
+          permissions,
+          summary: ROLE_PERMISSION_GROUPS[role.name]?.label || role.description || 'Role access profile',
+          totalUsers: usersInRole.length,
+          activeUsers,
+        };
+      }),
+    [sortedRoles, usersWithResolvedRole]
+  );
+
+  const selectedRole = useMemo(
+    () => sortedRoles.find((role) => String(role.id) === String(selectedRoleId)) || null,
+    [selectedRoleId, sortedRoles]
+  );
+
+  const selectedRolePermissions = useMemo(
+    () => (selectedRole ? ROLE_PERMISSION_GROUPS[selectedRole.name]?.permissions || [] : []),
+    [selectedRole]
+  );
+
+  const selectedRoleAccessSections = useMemo(
+    () =>
+      ACCESS_SECTIONS.map((section) => {
+        const matchedPermissions = section.permissions.filter((permission) => selectedRolePermissions.includes(permission));
+        return {
+          ...section,
+          count: matchedPermissions.length,
+          enabled: matchedPermissions.length > 0,
+        };
+      }),
+    [selectedRolePermissions]
+  );
+
+  const summaryStats = useMemo(() => {
+    const activeUsers = usersWithResolvedRole.filter((entry) => entry.is_active).length;
+    const inactiveUsers = usersWithResolvedRole.length - activeUsers;
+    const privilegedUsers = usersWithResolvedRole.filter((entry) => ['Super Admin', 'Admin'].includes(entry.resolvedRoleName)).length;
+    return [
+      { label: 'Total Roles', value: sortedRoles.length, tone: 'neutral' },
+      { label: 'Active Users', value: activeUsers, tone: 'success' },
+      { label: 'Inactive Users', value: inactiveUsers, tone: inactiveUsers ? 'warning' : 'neutral' },
+      { label: 'Privileged Users', value: privilegedUsers, tone: privilegedUsers ? 'danger' : 'neutral' },
+    ];
+  }, [sortedRoles.length, usersWithResolvedRole]);
 
   const closeCreate = () => {
     if (saving) return;
     setCreateOpen(false);
-    setCreateForm({ username: '', email: '', password: '' });
+    setCreateForm({ username: '', email: '', password: '', role_id: selectedRole?.id || '' });
   };
 
   const openCreate = () => {
-    setResetUser(null);
-    setCreateForm({ username: '', email: '', password: '' });
+    setCreateForm({
+      username: '',
+      email: '',
+      password: '',
+      role_id: selectedRole?.id || sortedRoles[0]?.id || '',
+    });
     setCreateOpen(true);
   };
 
-  const openResetPassword = (u) => {
-    setResetUser(u);
+  const openResetPassword = (entry) => {
+    setResetUser(entry);
     setResetForm({ new_password: '', confirm_password: '' });
   };
 
@@ -120,20 +304,29 @@ const AdminManagement = () => {
     setResetUser(null);
   };
 
-  const onCreateAdmin = async (e) => {
-    e.preventDefault();
+  const openEditUser = (entry) => {
+    setEditUser(entry);
+    setEditForm({
+      email: entry.email || '',
+      role_id: entry.role_id || '',
+      is_active: Boolean(entry.is_active),
+    });
+  };
 
-    if (!hasPermission('create_user')) {
+  const closeEditUser = () => {
+    if (saving) return;
+    setEditUser(null);
+  };
+
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+
+    if (!canCreateUsers) {
       toast.error('Permission denied');
       return;
     }
 
-    if (!adminRoleId) {
-      toast.error('Admin role not found');
-      return;
-    }
-
-    if (!createForm.username.trim() || !createForm.email.trim() || !createForm.password) {
+    if (!createForm.username.trim() || !createForm.email.trim() || !createForm.password || !createForm.role_id) {
       toast.error('All fields are required');
       return;
     }
@@ -143,50 +336,50 @@ const AdminManagement = () => {
       await usersAPI.createUser({
         username: createForm.username.trim(),
         email: createForm.email.trim(),
-        role_id: Number(adminRoleId),
         password: createForm.password,
+        role_id: Number(createForm.role_id),
       });
-      toast.success('Admin created');
+      toast.success('User created successfully');
       closeCreate();
-      await fetchData();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to create admin');
+      await fetchData(true);
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to create user');
     } finally {
       setSaving(false);
     }
   };
 
-  const onPromote = async () => {
-    if (!hasPermission('update_user')) {
+  const handleSaveUserAccess = async (event) => {
+    event.preventDefault();
+    if (!editUser) return;
+
+    if (!canUpdateUsers) {
       toast.error('Permission denied');
-      return;
-    }
-    if (!adminRoleId) {
-      toast.error('Admin role not found');
-      return;
-    }
-    if (!promoteUserId) {
-      toast.error('Select a user');
       return;
     }
 
     try {
       setSaving(true);
-      await usersAPI.updateUser(Number(promoteUserId), { role_id: Number(adminRoleId) });
-      toast.success('User promoted to Admin');
-      await fetchData();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to promote user');
+      await usersAPI.updateUser(editUser.id, {
+        email: editForm.email.trim(),
+        role_id: Number(editForm.role_id),
+        is_active: Boolean(editForm.is_active),
+      });
+      toast.success('User access updated');
+      closeEditUser();
+      await fetchData(true);
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to update user access');
     } finally {
       setSaving(false);
     }
   };
 
-  const onResetPassword = async (e) => {
-    e.preventDefault();
+  const handleResetPassword = async (event) => {
+    event.preventDefault();
     if (!resetUser) return;
 
-    if (!hasPermission('change_user_password')) {
+    if (!canResetPassword) {
       toast.error('Permission denied');
       return;
     }
@@ -202,35 +395,37 @@ const AdminManagement = () => {
         new_password: resetForm.new_password,
         confirm_password: resetForm.confirm_password,
       });
-      toast.success('Password reset');
+      toast.success('Password reset successfully');
       closeResetPassword();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to reset password');
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to reset password');
     } finally {
       setSaving(false);
     }
   };
 
-  const onDelete = async (u) => {
-    if (!hasPermission('delete_user')) {
+  const handleDeleteUser = async (entry) => {
+    if (!canDeleteUsers) {
       toast.error('Permission denied');
       return;
     }
-    if (u?.username === 'admin') {
+
+    if (entry.username === 'admin') {
       toast.error('Default admin cannot be deleted');
       return;
     }
-    if (!window.confirm(`Delete admin "${u?.username}"? This will deactivate the account.`)) {
+
+    if (!window.confirm(`Deactivate user "${entry.username}"?`)) {
       return;
     }
 
     try {
       setSaving(true);
-      await usersAPI.deleteUser(u.id);
-      toast.success('Admin deleted');
-      await fetchData();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to delete admin');
+      await usersAPI.deleteUser(entry.id);
+      toast.success('User deactivated');
+      await fetchData(true);
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to deactivate user');
     } finally {
       setSaving(false);
     }
@@ -239,137 +434,262 @@ const AdminManagement = () => {
   if (loading) {
     return (
       <div className="admin-mgmt-page">
-        <div className="loading-spinner" aria-label="Loading admin management" />
+        <div className="loading-spinner" aria-label="Loading role access" />
       </div>
     );
   }
 
   return (
-    <div className="admin-mgmt-page">
-      <div className="admin-mgmt-header">
-        <div className="header-left">
+    <div className="admin-mgmt-page role-access-page">
+      <div className="role-access-hero">
+        <div className="hero-copy">
+          <div className="hero-kicker">Role-based access control</div>
           <h1 className="page-title">
-            <FiUser /> Admin Management
+            <FiShield /> Role Access Management
           </h1>
-          <p className="page-subtitle">Create and manage multiple admins safely</p>
+          <p className="page-subtitle">
+            Manage user roles, review permission coverage, and control access professionally across the system.
+          </p>
         </div>
 
-        <div className="header-right">
-          <div className="admin-mgmt-search">
-            <FiSearch className="search-icon" />
-            <input
-              className="search-input"
-              placeholder="Search admins..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          <button className="btn btn-outline btn-sm" onClick={fetchData} disabled={saving}>
-            <FiRefreshCw /> Refresh
+        <div className="hero-actions">
+          <button className="btn btn-outline btn-sm" onClick={() => fetchData(true)} disabled={refreshing || saving}>
+            <FiRefreshCw className={refreshing ? 'spinning' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
-
-          {hasPermission('create_user') ? (
+          {canCreateUsers ? (
             <button className="btn btn-primary btn-sm" onClick={openCreate} disabled={saving}>
-              <FiPlus /> Add Admin
+              <FiPlus /> Add User
             </button>
           ) : null}
         </div>
       </div>
 
-      <div className="admin-mgmt-panels">
-        <div className="admin-mgmt-card">
-          <div className="card-title">Promote User to Admin</div>
-          <div className="card-subtitle">Select an existing user and promote to Admin role</div>
+      <div className="summary-grid">
+        {summaryStats.map((item) => (
+          <div key={item.label} className={`summary-card tone-${item.tone}`}>
+            <div className="summary-value">{item.value}</div>
+            <div className="summary-label">{item.label}</div>
+          </div>
+        ))}
+      </div>
 
-          <div className="promote-row">
-            <select
-              className="input"
-              value={promoteUserId}
-              onChange={(e) => setPromoteUserId(e.target.value)}
-              disabled={saving || nonAdminUsers.length === 0}
-            >
-              {nonAdminUsers.length === 0 ? <option value="">No eligible users</option> : null}
-              {nonAdminUsers.map((u) => (
-                <option key={u.id} value={String(u.id)}>
-                  {u.username} ({u.email})
-                </option>
-              ))}
-            </select>
+      <div className="role-access-layout">
+        <section className="role-panel role-directory">
+          <div className="panel-header">
+            <div>
+              <h2>Role Directory</h2>
+              <p>Review each role and the number of users currently assigned.</p>
+            </div>
+          </div>
 
-            <button className="btn btn-outline btn-sm" onClick={onPromote} disabled={saving || !promoteUserId}>
-              <FiUserCheck /> Promote
-            </button>
+          <div className="role-card-grid">
+            {roleCards.map((role) => (
+              <button
+                key={role.id}
+                type="button"
+                className={`role-card ${String(selectedRoleId) === String(role.id) ? 'active' : ''}`}
+                onClick={() => setSelectedRoleId(String(role.id))}
+              >
+                <div className="role-card-header">
+                  <span className="role-card-name">{role.name}</span>
+                  <span className="role-card-count">{role.totalUsers}</span>
+                </div>
+                <div className="role-card-summary">{role.summary}</div>
+                <div className="role-card-meta">{role.activeUsers} active users</div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="role-panel permission-panel">
+          <div className="panel-header">
+            <div>
+              <h2>Access Scope</h2>
+              <p>{selectedRole ? `${selectedRole.name} role coverage` : 'Select a role to review access'}</p>
+            </div>
+          </div>
+
+          {selectedRole ? (
+            <>
+              <div className="permission-summary">
+                <div className="permission-summary-title">{selectedRole.name}</div>
+                <div className="permission-summary-subtitle">
+                  {ROLE_PERMISSION_GROUPS[selectedRole.name]?.label || selectedRole.description || 'Role access profile'}
+                </div>
+              </div>
+
+              <div className="scope-grid">
+                {selectedRoleAccessSections.map((section) => (
+                  <div key={section.key} className={`scope-card ${section.enabled ? 'enabled' : 'disabled'}`}>
+                    <div className="scope-card-icon">
+                      <FiLayers />
+                    </div>
+                    <div className="scope-card-content">
+                      <div className="scope-card-title">{section.title}</div>
+                      <div className="scope-card-description">{section.description}</div>
+                    </div>
+                    <div className="scope-card-count">{section.count}</div>
+                  </div>
+                ))}
+              </div>
+
+              {!selectedRolePermissions.length ? <div className="empty-note">No permission mapping available for this role yet.</div> : null}
+            </>
+          ) : (
+            <div className="empty-note">No role selected.</div>
+          )}
+        </section>
+      </div>
+
+      <section className="role-panel access-policy-panel">
+        <div className="panel-header">
+          <div>
+            <h2>Access Policy</h2>
+            <p>Current operator profile and guardrails for this page.</p>
           </div>
         </div>
-      </div>
 
-      <div className="admin-mgmt-table-card">
-        <table className="admin-mgmt-table">
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th className="actions-col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {adminUsers.length === 0 ? (
+        <div className="policy-grid">
+          <div className="policy-item">
+            <span className="policy-label">Current role</span>
+            <span className="policy-value">{currentRole}</span>
+          </div>
+          <div className="policy-item">
+            <span className="policy-label">Can create users</span>
+            <span className="policy-value">{canCreateUsers ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="policy-item">
+            <span className="policy-label">Can update access</span>
+            <span className="policy-value">{canUpdateUsers ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="policy-item">
+            <span className="policy-label">Can reset passwords</span>
+            <span className="policy-value">{canResetPassword ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="policy-item">
+            <span className="policy-label">Can deactivate users</span>
+            <span className="policy-value">{canDeleteUsers ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="policy-item">
+            <span className="policy-label">Highest access tier</span>
+            <span className="policy-value">{isSuperAdmin ? 'Super Admin' : 'Standard admin scope'}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="role-panel user-access-panel">
+        <div className="panel-header">
+          <div>
+            <h2>User Access Directory</h2>
+            <p>Search, filter, and manage user role assignments.</p>
+          </div>
+        </div>
+
+        <div className="toolbar-row">
+          <label className="search-field">
+            <FiSearch className="search-icon" />
+            <input
+              className="search-input"
+              placeholder="Search by username, email, or role..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+
+          <select className="input filter-input" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value="">All Roles</option>
+            {sortedRoles.map((role) => (
+              <option key={role.id} value={role.name}>{role.name}</option>
+            ))}
+          </select>
+
+          <div className="toolbar-note">
+            <FiFilter /> {filteredUsers.length} user{filteredUsers.length === 1 ? '' : 's'}
+          </div>
+        </div>
+
+        <div className="user-table-card">
+          <table className="user-access-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="admin-mgmt-empty">
-                  No admins found
-                </td>
+                <th>User</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th className="actions-col">Actions</th>
               </tr>
-            ) : (
-              adminUsers.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.username}</td>
-                  <td>{u.email}</td>
-                  <td>{u.role?.name || u.role_id}</td>
-                  <td>
-                    <span className={`status-pill ${u.is_active ? 'active' : 'inactive'}`}>
-                      {u.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="actions-col">
-                    {hasPermission('change_user_password') ? (
-                      <button className="btn btn-outline btn-sm" onClick={() => openResetPassword(u)}>
-                        <FiKey /> Reset
-                      </button>
-                    ) : null}
-                    {hasPermission('delete_user') && u?.username !== 'admin' && u?.role?.name !== 'Super Admin' ? (
-                      <button className="btn btn-outline btn-sm" onClick={() => onDelete(u)} disabled={saving}>
-                        <FiTrash2 /> Delete
-                      </button>
-                    ) : null}
-                  </td>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="table-empty">No users match the current filters</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filteredUsers.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <div className="user-cell">
+                        <span className="user-avatar">{entry.username?.charAt(0)?.toUpperCase() || 'U'}</span>
+                        <div>
+                          <div className="user-name">{entry.username}</div>
+                          <div className="user-meta">ID #{entry.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{entry.email}</td>
+                    <td>
+                      <span className="role-pill">{entry.resolvedRoleName}</span>
+                    </td>
+                    <td>
+                      <span className={`status-pill ${entry.is_active ? 'active' : 'inactive'}`}>
+                        {entry.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '—'}</td>
+                    <td className="actions-col">
+                      {canManageRoles ? (
+                        <button className="btn btn-outline btn-sm" onClick={() => openEditUser(entry)} disabled={saving}>
+                          <FiEdit3 /> Edit Access
+                        </button>
+                      ) : null}
+                      {canResetPassword ? (
+                        <button className="btn btn-outline btn-sm" onClick={() => openResetPassword(entry)} disabled={saving}>
+                          <FiKey /> Reset
+                        </button>
+                      ) : null}
+                      {canDeleteUsers && entry.username !== 'admin' ? (
+                        <button className="btn btn-outline btn-sm" onClick={() => handleDeleteUser(entry)} disabled={saving}>
+                          <FiTrash2 /> Deactivate
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      {createOpen && (
+      {createOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal-card">
             <div className="modal-header">
-              <div className="modal-title">Add Admin</div>
+              <div className="modal-title">Create User Access</div>
               <button className="modal-close" onClick={closeCreate} aria-label="Close">
                 <FiX />
               </button>
             </div>
 
-            <form onSubmit={onCreateAdmin} className="modal-body">
+            <form onSubmit={handleCreateUser} className="modal-body">
               <div className="form-grid">
                 <div className="form-group">
                   <label>Username</label>
                   <input
                     className="input"
                     value={createForm.username}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, username: e.target.value }))}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, username: event.target.value }))}
                     type="text"
                     required
                   />
@@ -380,18 +700,33 @@ const AdminManagement = () => {
                   <input
                     className="input"
                     value={createForm.email}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
                     type="email"
                     required
                   />
                 </div>
 
-                <div className="form-group full">
+                <div className="form-group">
+                  <label>Role</label>
+                  <select
+                    className="input"
+                    value={createForm.role_id}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, role_id: event.target.value }))}
+                    required
+                  >
+                    <option value="">Select role</option>
+                    {sortedRoles.map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label>Password</label>
                   <input
                     className="input"
                     value={createForm.password}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
                     type="password"
                     required
                   />
@@ -399,19 +734,77 @@ const AdminManagement = () => {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={closeCreate} disabled={saving}>
-                  Cancel
-                </button>
+                <button type="button" className="btn btn-outline" onClick={closeCreate} disabled={saving}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Create Admin'}
+                  {saving ? 'Saving...' : 'Create User'}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {resetUser && (
+      {editUser ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="modal-header">
+              <div className="modal-title">Edit Access: {editUser.username}</div>
+              <button className="modal-close" onClick={closeEditUser} aria-label="Close">
+                <FiX />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserAccess} className="modal-body">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    className="input"
+                    value={editForm.email}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
+                    type="email"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Role</label>
+                  <select
+                    className="input"
+                    value={editForm.role_id}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, role_id: event.target.value }))}
+                    required
+                  >
+                    {sortedRoles.map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group full">
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={editForm.is_active}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, is_active: event.target.checked }))}
+                    />
+                    <span>Keep this user active</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn btn-outline" onClick={closeEditUser} disabled={saving}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Access'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {resetUser ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal-card">
             <div className="modal-header">
@@ -421,14 +814,14 @@ const AdminManagement = () => {
               </button>
             </div>
 
-            <form onSubmit={onResetPassword} className="modal-body">
+            <form onSubmit={handleResetPassword} className="modal-body">
               <div className="form-grid">
                 <div className="form-group full">
                   <label>New Password</label>
                   <input
                     className="input"
                     value={resetForm.new_password}
-                    onChange={(e) => setResetForm((p) => ({ ...p, new_password: e.target.value }))}
+                    onChange={(event) => setResetForm((prev) => ({ ...prev, new_password: event.target.value }))}
                     type="password"
                     required
                   />
@@ -439,7 +832,7 @@ const AdminManagement = () => {
                   <input
                     className="input"
                     value={resetForm.confirm_password}
-                    onChange={(e) => setResetForm((p) => ({ ...p, confirm_password: e.target.value }))}
+                    onChange={(event) => setResetForm((prev) => ({ ...prev, confirm_password: event.target.value }))}
                     type="password"
                     required
                   />
@@ -447,9 +840,7 @@ const AdminManagement = () => {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={closeResetPassword} disabled={saving}>
-                  Cancel
-                </button>
+                <button type="button" className="btn btn-outline" onClick={closeResetPassword} disabled={saving}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Saving...' : 'Reset Password'}
                 </button>
@@ -457,7 +848,7 @@ const AdminManagement = () => {
             </form>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

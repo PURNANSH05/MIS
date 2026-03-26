@@ -8,7 +8,7 @@ import Home from './pages/Home/Home';
 import About from './pages/About/About';
 import PublicPage from './pages/PublicPage/PublicPage';
 import Dashboard from './pages/Dashboard/Dashboard';
-import Inventory from './pages/Inventory/Inventory';
+import Stock from './pages/Stock/Stock';
 import Locations from './pages/Locations/Locations';
 import Suppliers from './pages/Suppliers/Suppliers';
 import Users from './pages/Users/Users';
@@ -16,11 +16,6 @@ import AdminManagement from './pages/AdminManagement/AdminManagement';
 import Alerts from './pages/Alerts/Alerts';
 import AuditLogs from './pages/AuditLogs/AuditLogs';
 import Reports from './pages/Reports/Reports';
-import ReceiveStock from './pages/StockOperations/ReceiveStock';
-import IssueStock from './pages/StockOperations/IssueStock';
-import TransferStock from './pages/StockOperations/TransferStock';
-import DisposeStock from './pages/StockOperations/DisposeStock';
-import AdjustStock from './pages/StockOperations/AdjustStock';
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -64,7 +59,7 @@ function App() {
         >
           <Route index element={<Navigate to="/app/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="inventory" element={<Inventory />} />
+          <Route path="stock" element={<Stock />} />
           <Route path="locations" element={<Locations />} />
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="users" element={<Users />} />
@@ -72,11 +67,6 @@ function App() {
           <Route path="alerts" element={<Alerts />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="stock/receive" element={<ReceiveStock />} />
-          <Route path="stock/issue" element={<IssueStock />} />
-          <Route path="stock/transfer" element={<TransferStock />} />
-          <Route path="stock/dispose" element={<DisposeStock />} />
-          <Route path="stock/adjust" element={<AdjustStock />} />
         </Route>
         
         {/* Catch all route */}

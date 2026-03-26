@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import {
+  authAPI,
+  clearStoredAuth,
+  getStoredAccessToken,
+  storeAuthTokens,
+} from '../services/api';
 import { toast } from 'react-toastify';
 
 // Initial state
 const initialState = {
   user: null,
-  token: localStorage.getItem('token'),
+  token: getStoredAccessToken(),
   isAuthenticated: false,
   loading: true,
   error: null,
@@ -96,8 +101,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
       const { user, access_token, permissions } = response.data || response;
       
-      // Store token in localStorage
-      localStorage.setItem('token', access_token);
+      storeAuthTokens({
+        accessToken: access_token,
+        refreshToken: response?.data?.refresh_token,
+      });
       
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -128,7 +135,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('token');
+      clearStoredAuth();
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
       toast.success('Logged out successfully');
     }
@@ -136,7 +143,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check authentication status
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredAccessToken();
     if (!token) {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       return;
@@ -161,9 +168,13 @@ export const AuthProvider = ({ children }) => {
         },
       });
     } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
-      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      // Silently handle 401 - token is invalid or expired
+      if (error?.response?.status === 401) {
+        clearStoredAuth();
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      } else {
+        console.error('Auth check failed:', error);
+      }
     } finally {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
     }
@@ -203,11 +214,17 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user has role
   const hasRole = (role) => {
+    if (typeof state.user?.role === 'string') {
+      return state.user.role === role;
+    }
     return state.user?.role?.name === role;
   };
 
   // Get user role
   const getUserRole = () => {
+    if (typeof state.user?.role === 'string') {
+      return state.user.role;
+    }
     return state.user?.role?.name || 'Unknown';
   };
 

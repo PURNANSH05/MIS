@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
+  FiChevronLeft,
+  FiChevronRight,
   FiHome,
+  FiDatabase,
   FiPackage,
   FiLogOut,
   FiMenu,
-  FiX,
-  FiDatabase,
   FiMapPin,
   FiTruck,
   FiUsers,
@@ -15,23 +16,38 @@ import {
   FiBell,
   FiBarChart2,
   FiFileText,
-  FiArrowDownCircle,
-  FiArrowUpCircle,
-  FiRepeat,
-  FiSliders,
-  FiTrash,
 } from 'react-icons/fi';
 import './Sidebar.css';
 
 const Sidebar = () => {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout, hasPermission, hasAnyPermission } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedValue = localStorage.getItem('sidebarCollapsed');
+    if (savedValue !== null) {
+      setSidebarCollapsed(savedValue === 'true');
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = sidebarCollapsed ? 'true' : 'false';
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  const stockPermissions = [
+    'view_items',
+    'list_items',
+    'receive_stock',
+    'issue_stock',
+    'transfer_stock',
+    'dispose_stock',
+    'adjust_stock',
+    'view_stock_movements',
+  ];
 
   const menuItems = [
     {
@@ -41,16 +57,16 @@ const Sidebar = () => {
       permission: null, // Everyone can see dashboard
     },
     {
-      path: '/app/inventory',
+      path: '/app/stock',
       icon: FiPackage,
-      label: 'Inventory',
-      permission: 'view_items',
+      label: 'Stock Management',
+      visible: () => hasAnyPermission(stockPermissions),
     },
     {
       path: '/app/locations',
       icon: FiMapPin,
       label: 'Locations',
-      permission: 'create_location',
+      permission: 'list_locations',
     },
     {
       path: '/app/suppliers',
@@ -67,7 +83,7 @@ const Sidebar = () => {
     {
       path: '/app/admin-management',
       icon: FiUserCheck,
-      label: 'Admin Management',
+      label: 'Role Access',
       permission: 'list_users',
     },
     {
@@ -83,59 +99,30 @@ const Sidebar = () => {
       permission: 'view_stock_report',
     },
     {
-      path: '/app/stock/receive',
-      icon: FiArrowDownCircle,
-      label: 'Receive Stock',
-      permission: 'receive_stock',
-    },
-    {
-      path: '/app/stock/issue',
-      icon: FiArrowUpCircle,
-      label: 'Issue Stock',
-      permission: 'issue_stock',
-    },
-    {
-      path: '/app/stock/transfer',
-      icon: FiRepeat,
-      label: 'Transfer Stock',
-      permission: 'transfer_stock',
-    },
-    {
-      path: '/app/stock/dispose',
-      icon: FiTrash,
-      label: 'Dispose Stock',
-      permission: 'dispose_stock',
-    },
-    {
-      path: '/app/stock/adjust',
-      icon: FiSliders,
-      label: 'Adjust Stock',
-      permission: 'adjust_stock',
-    },
-    {
       path: '/app/audit-logs',
       icon: FiFileText,
-      label: 'Audit Logs',
+      label: 'Audit Center',
       permission: 'view_audit_logs',
     },
   ];
 
   // Filter menu items based on permissions
   const filteredMenuItems = menuItems.filter(item => 
-    !item.permission || hasPermission(item.permission)
+    item.visible ? item.visible() : (!item.permission || hasPermission(item.permission))
   );
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setMobileMenuOpen(false);
+    navigate('/login', { replace: true });
   };
 
   const handleMobileMenuToggle = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
+  const handleSidebarCollapse = () => {
+    setSidebarCollapsed((value) => !value);
   };
 
   const isActive = (path) => {
@@ -150,7 +137,7 @@ const Sidebar = () => {
         onClick={handleMobileMenuToggle}
         aria-label="Toggle menu"
       >
-        {mobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+        <FiMenu size={24} />
       </button>
 
       {/* Sidebar Overlay for Mobile */}
@@ -165,18 +152,16 @@ const Sidebar = () => {
       <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         {/* Logo */}
         <div className="sidebar-header">
-          <div className="logo">
-            <FiDatabase className="logo-icon" />
-            {!sidebarCollapsed && (
-              <span className="logo-text">MedInventory</span>
-            )}
+          <div className="sidebar-brand">
+            <FiDatabase className="sidebar-brand-icon" />
           </div>
           <button
-            className="sidebar-toggle hidden-mobile"
-            onClick={toggleSidebar}
-            aria-label="Toggle sidebar"
+            className="sidebar-collapse-toggle hidden-mobile"
+            onClick={handleSidebarCollapse}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {sidebarCollapsed ? <FiMenu size={20} /> : <FiX size={20} />}
+            {sidebarCollapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
           </button>
         </div>
 
@@ -185,12 +170,10 @@ const Sidebar = () => {
           <div className="user-avatar">
             {user?.username?.charAt(0).toUpperCase()}
           </div>
-          {!sidebarCollapsed && (
-            <div className="user-info">
-              <div className="user-name">{user?.username}</div>
-              <div className="user-role">{user?.role?.name}</div>
-            </div>
-          )}
+          <div className="user-info">
+            <div className="user-name">{user?.username}</div>
+            <div className="user-role">{typeof user?.role === 'string' ? user.role : user?.role?.name}</div>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -206,10 +189,8 @@ const Sidebar = () => {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Icon className="nav-icon" />
-                    {!sidebarCollapsed && (
-                      <span className="nav-text">{item.label}</span>
-                    )}
-                    {isActive(item.path) && !sidebarCollapsed && (
+                    {!sidebarCollapsed ? <span className="nav-text">{item.label}</span> : null}
+                    {isActive(item.path) && (
                       <div className="nav-indicator" />
                     )}
                   </NavLink>
@@ -228,9 +209,7 @@ const Sidebar = () => {
             aria-label="Logout"
           >
             <FiLogOut className="logout-icon" />
-            {!sidebarCollapsed && (
-              <span className="logout-text">Logout</span>
-            )}
+            {!sidebarCollapsed ? <span className="logout-text">Logout</span> : null}
           </button>
         </div>
       </aside>

@@ -1,0 +1,179 @@
+/* Stock Management Container */
+.stock-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 100%;
+}
+
+/* Stock Page Header */
+.stock-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stock-header-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+/* Tabs Wrapper */
+.stock-tabs-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stock-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+/* Individual Tab Button */
+.stock-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 0.5rem;
+  background-color: #f7fafc;
+  color: #4a5568;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 2.5rem;
+}
+
+.stock-tab:hover {
+  background-color: #edf2f7;
+  color: #2d3748;
+}
+
+.stock-tab.active {
+  background-color: #3182ce;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+}
+
+.stock-tab .tab-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.stock-tab .tab-label {
+  font-size: 0.875rem;
+}
+
+/* Responsive: Hide label on small screens */
+@media (max-width: 768px) {
+  .stock-tab .tab-label {
+    display: none;
+  }
+
+  .stock-tab {
+    padding: 0.75rem;
+    gap: 0;
+  }
+}
+
+/* Stock Content Area */
+.stock-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+/* Error Message */
+.stock-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+  background-color: #fff5f5;
+  border: 2px solid #feb2b2;
+  border-radius: 0.5rem;
+  color: #c53030;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.stock-error p {
+  margin: 0;
+}
+
+/* Loading Spinner */
+.stock-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .stock-container {
+    padding: 1.5rem;
+  }
+
+  .stock-tabs {
+    gap: 0.25rem;
+  }
+
+  .stock-tab {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .stock-container {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .stock-tabs-wrapper {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .stock-tabs {
+    gap: 0.25rem;
+  }
+
+  .stock-tab {
+    padding: 0.6rem;
+    gap: 0;
+  }
+
+  .stock-tab .tab-icon {
+    font-size: 1rem;
+  }
+}
+
+/* Stock Page Wrapper */
+.stock-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Ensure content fits well */
+.stock-content > * {
+  width: 100%;
+}

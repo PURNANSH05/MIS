@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { FiPackage, FiTrash2, FiSearch, FiFilter, FiDownload, FiEye, FiX, FiRefreshCw } from 'react-icons/fi';
+import { FiPackage, FiTrash2, FiSearch, FiFilter, FiDownload, FiEye, FiX, FiRefreshCw, FiPlus, FiCheckCircle } from 'react-icons/fi';
 import { itemsAPI, batchesAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import PageHeader from '../../components/ui/PageHeader';
+import Card from '../../components/ui/Card';
+import { downloadReport } from '../../services/reportGenerator';
 import './Inventory.css';
 
 const Inventory = () => {
+  const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [creatingItem, setCreatingItem] = useState(false);
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,10 +28,22 @@ const Inventory = () => {
 
   const [batchesByItemId, setBatchesByItemId] = useState(new Map());
   const [detailsItem, setDetailsItem] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    sku: '',
+    category: 'Medications',
+    unit: 'Box',
+    reorder_level: 10,
+    description: '',
+  });
 
   const categories = ['all', 'PPE', 'Equipment', 'Medications', 'Supplies', 'Devices'];
+  const itemCategories = ['Medications', 'PPE', 'Equipment', 'Supplies', 'Devices'];
+  const unitOptions = ['Box', 'Bottle', 'Strip', 'Pack', 'Piece', 'Vial', 'Tablet', 'Capsule'];
   const [locations, setLocations] = useState(['all']);
   const statuses = ['all', 'in-stock', 'low-stock', 'out-of-stock'];
+  const canCreateItem = hasPermission('create_item');
 
   useEffect(() => {
     fetchItems();
@@ -175,6 +193,74 @@ const Inventory = () => {
     setDetailsItem(null);
   };
 
+  const resetCreateForm = () => {
+    setCreateForm({
+      name: '',
+      sku: '',
+      category: 'Medications',
+      unit: 'Box',
+      reorder_level: 10,
+      description: '',
+    });
+  };
+
+  const closeCreateModal = () => {
+    if (creatingItem) return;
+    setShowCreateModal(false);
+    resetCreateForm();
+  };
+
+  const openCreateModal = () => {
+    if (!canCreateItem) {
+      toast.error('You do not have permission to create items');
+      return;
+    }
+    setShowCreateModal(true);
+  };
+
+  const handleCreateFormChange = (field, value) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      [field]: field === 'sku' ? String(value).toUpperCase() : value,
+    }));
+  };
+
+  const handleCreateItem = async (e) => {
+    e.preventDefault();
+
+    if (!canCreateItem) {
+      toast.error('You do not have permission to create items');
+      return;
+    }
+
+    const payload = {
+      name: createForm.name.trim(),
+      sku: createForm.sku.trim().toUpperCase(),
+      category: createForm.category,
+      unit: createForm.unit,
+      reorder_level: Number(createForm.reorder_level) || 0,
+      description: createForm.description.trim() || null,
+    };
+
+    if (!payload.name || !payload.sku || !payload.category || !payload.unit) {
+      toast.error('Please fill all required item details');
+      return;
+    }
+
+    try {
+      setCreatingItem(true);
+      await itemsAPI.createItem(payload);
+      await fetchItems();
+      setShowCreateModal(false);
+      resetCreateForm();
+      toast.success('Item created successfully. You can now receive stock for it.');
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || 'Failed to create item');
+    } finally {
+      setCreatingItem(false);
+    }
+  };
+
   const getExpiryBucket = (isoDate) => {
     if (!isoDate) return 'none';
     const d = new Date(String(isoDate));
@@ -206,55 +292,62 @@ const Inventory = () => {
   };
 
   const handleExport = () => {
-    // Export functionality
-    const csvContent = [
-      ['Name', 'SKU', 'Category', 'Locations', 'Total Quantity', 'Unit', 'Reorder Level', 'Status', 'Nearest Expiry'],
-      ...filteredItems.map(item => [
-        item.name,
-        item.sku,
-        item.category,
-        Array.isArray(item.locations) ? item.locations.join(' | ') : item.location,
-        item.quantity,
-        item.unit,
-        item.minStock,
-        item.status,
-        item.expiryDate || ''
-      ])
-    ].map(row => row.join(',')).join('\n');
+    const reportData = {
+      title: 'INVENTORY STOCK REPORT',
+      subtitle: 'Complete Medical Inventory Listing with Status',
+      generatedAt: new Date(),
+      columns: ['Name', 'SKU', 'Category', 'Locations', 'Total Quantity', 'Unit', 'Reorder Level', 'Status', 'Nearest Expiry'],
+      data: filteredItems.map(item => ({
+        Name: item.name,
+        SKU: item.sku,
+        Category: item.category,
+        Locations: Array.isArray(item.locations) ? item.locations.join(' | ') : item.location,
+        'Total Quantity': item.quantity,
+        Unit: item.unit,
+        'Reorder Level': item.minStock,
+        Status: item.status,
+        'Nearest Expiry': item.expiryDate || 'N/A',
+      })),
+      summaryStats: [
+        { label: 'Total Items Listed', value: filteredItems.length },
+        { label: 'Total Stock Value', value: `$${(filteredItems.reduce((sum, item) => sum + (item.quantity * (item.unitPrice || 0)), 0)).toFixed(2)}` },
+        { label: 'Average Stock Level', value: Math.round(filteredItems.reduce((sum, item) => sum + item.quantity, 0) / filteredItems.length || 0) },
+        { label: 'Filter Applied', value: `Category: ${selectedCategory}, Status: ${selectedStatus}` },
+      ],
+      footer: 'This inventory report contains current stock information. All quantities, prices, and dates are as of the report generation time.',
+    };
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Inventory exported successfully');
+    downloadReport(`inventory-report-${Date.now()}.csv`, reportData);
+    toast.success('Inventory report exported successfully');
   };
 
   const downloadBatchesCsv = (item) => {
     const batches = batchesByItemId.get(item.id) || [];
-    const rows = [
-      ['Medicine', 'SKU', 'Batch', 'Location', 'Quantity', 'Manufacturing Date', 'Expiry Date'],
-      ...batches.map((b) => [
-        item.name,
-        item.sku,
-        b.batch_number,
-        b.location?.name || b.location_name || String(b.location_id || ''),
-        String(b.quantity ?? ''),
-        b.manufacturing_date || '',
-        b.expiry_date || '',
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `batches-${item.sku || item.id}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const reportData = {
+      title: 'BATCH DETAILS REPORT',
+      subtitle: `Batch Information for: ${item.name} (${item.sku})`,
+      generatedAt: new Date(),
+      columns: ['Medicine', 'SKU', 'Batch Number', 'Location', 'Quantity', 'Manufacturing Date', 'Expiry Date'],
+      data: batches.map((b) => ({
+        Medicine: item.name,
+        SKU: item.sku,
+        'Batch Number': b.batch_number,
+        Location: b.location?.name || b.location_name || String(b.location_id || 'Unknown'),
+        Quantity: String(b.quantity ?? 0),
+        'Manufacturing Date': b.manufacturing_date || 'N/A',
+        'Expiry Date': b.expiry_date || 'N/A',
+      })),
+      summaryStats: [
+        { label: 'Total Batches', value: batches.length },
+        { label: 'Total Quantity', value: batches.reduce((sum, b) => sum + (b.quantity || 0), 0) },
+        { label: 'Product', value: item.name },
+        { label: 'Product SKU', value: item.sku },
+      ],
+      footer: 'This batch report provides detailed information about all batches for the specified medical item.',
+    };
+    
+    downloadReport(`batch-details-${item.sku || item.id}-${Date.now()}.csv`, reportData);
+    toast.success('Batch report exported successfully');
   };
 
   const toggleItemSelection = (itemId) => {
@@ -289,34 +382,38 @@ const Inventory = () => {
 
   return (
     <div className="inventory-page">
-      {/* Header */}
-      <div className="inventory-header">
-        <div className="header-left">
-          <h1 className="page-title">
-            <FiPackage /> Medicines Inventory
-          </h1>
-          <p className="page-subtitle">
-            Clear view of medicines, stock levels, locations, and expiries
-          </p>
-        </div>
-        <div className="header-right">
-          <button onClick={fetchItems} className="btn btn-outline btn-sm">
-            <FiRefreshCw /> Refresh
-          </button>
-          <button
-            onClick={handleExport}
-            className="btn btn-outline btn-sm"
-          >
-            <FiDownload /> Export
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn btn-outline btn-sm"
-          >
-            <FiFilter /> Filters
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Medicines Inventory"
+        subtitle="Manage item records, stock posture, locations, and expiry exposure from one workspace."
+        icon={FiPackage}
+        actions={
+          <>
+            <button onClick={fetchItems} className="btn btn-outline btn-sm">
+              <FiRefreshCw /> Refresh
+            </button>
+            {canCreateItem ? (
+              <button
+                onClick={openCreateModal}
+                className="btn btn-primary btn-sm"
+              >
+                <FiPlus /> Add Item
+              </button>
+            ) : null}
+            <button
+              onClick={handleExport}
+              className="btn btn-outline btn-sm"
+            >
+              <FiDownload /> Export
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="btn btn-outline btn-sm"
+            >
+              <FiFilter /> Filters
+            </button>
+          </>
+        }
+      />
 
       {/* Statistics */}
       <div className="inventory-stats">
@@ -345,6 +442,33 @@ const Inventory = () => {
           Near Expiry
         </button>
       </div>
+
+      <Card className="inventory-cta-card">
+        <div className="inventory-cta-copy">
+          <div className="inventory-cta-eyebrow">Item Master Setup</div>
+          <h2>Add a new medicine or supply item</h2>
+          <p>
+            Create the item profile with name, SKU, category, unit, and reorder level. After saving it,
+            use Receive Stock to add batches and quantities.
+          </p>
+          <div className="inventory-cta-points">
+            <span><FiCheckCircle /> Professional item record</span>
+            <span><FiCheckCircle /> Ready for stock receiving</span>
+            <span><FiCheckCircle /> Visible instantly in inventory</span>
+          </div>
+        </div>
+        <div className="inventory-cta-actions">
+          {canCreateItem ? (
+            <button type="button" className="btn btn-primary" onClick={openCreateModal}>
+              <FiPlus /> Create New Item
+            </button>
+          ) : (
+            <div className="inventory-cta-note">
+              Your account needs the <span className="mono">create_item</span> permission to add medicines.
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Filters */}
       {showFilters && (
@@ -483,7 +607,15 @@ const Inventory = () => {
             {currentItems.length === 0 ? (
               <tr>
                 <td colSpan={9} className="inventory-empty">
-                  No medicines found
+                  <div className="inventory-empty-state">
+                    <strong>No medicines found</strong>
+                    <span>Create your first item, then receive stock to make it available in operations.</span>
+                    {canCreateItem ? (
+                      <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
+                        <FiPlus /> Add First Item
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -615,6 +747,116 @@ const Inventory = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showCreateModal ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card inventory-create-modal">
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Create New Item</div>
+                <div className="modal-subtitle modal-subtitle-tight">
+                  Add the master item record here, then use Receive Stock to enter quantity and batch details.
+                </div>
+              </div>
+              <button className="modal-close" onClick={closeCreateModal} aria-label="Close" disabled={creatingItem}>
+                <FiX />
+              </button>
+            </div>
+
+            <form className="modal-body inventory-create-form" onSubmit={handleCreateItem}>
+              <div className="inventory-create-grid">
+                <div className="inventory-field inventory-field-wide">
+                  <label htmlFor="item-name">Item Name</label>
+                  <input
+                    id="item-name"
+                    type="text"
+                    className="inventory-input"
+                    placeholder="Paracetamol 500mg"
+                    value={createForm.name}
+                    onChange={(e) => handleCreateFormChange('name', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="inventory-field">
+                  <label htmlFor="item-sku">SKU Code</label>
+                  <input
+                    id="item-sku"
+                    type="text"
+                    className="inventory-input inventory-input-mono"
+                    placeholder="MED-001"
+                    value={createForm.sku}
+                    onChange={(e) => handleCreateFormChange('sku', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="inventory-field">
+                  <label htmlFor="item-category">Category</label>
+                  <select
+                    id="item-category"
+                    className="inventory-input"
+                    value={createForm.category}
+                    onChange={(e) => handleCreateFormChange('category', e.target.value)}
+                  >
+                    {itemCategories.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="inventory-field">
+                  <label htmlFor="item-unit">Unit</label>
+                  <select
+                    id="item-unit"
+                    className="inventory-input"
+                    value={createForm.unit}
+                    onChange={(e) => handleCreateFormChange('unit', e.target.value)}
+                  >
+                    {unitOptions.map((unit) => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="inventory-field">
+                  <label htmlFor="item-reorder">Reorder Level</label>
+                  <input
+                    id="item-reorder"
+                    type="number"
+                    min="0"
+                    className="inventory-input"
+                    value={createForm.reorder_level}
+                    onChange={(e) => handleCreateFormChange('reorder_level', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="inventory-field inventory-field-wide">
+                  <label htmlFor="item-description">Description</label>
+                  <textarea
+                    id="item-description"
+                    className="inventory-input inventory-textarea"
+                    placeholder="Optional notes about dosage, packaging, or usage"
+                    value={createForm.description}
+                    onChange={(e) => handleCreateFormChange('description', e.target.value)}
+                    rows={4}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions inventory-create-actions">
+                <button type="button" className="btn btn-outline" onClick={closeCreateModal} disabled={creatingItem}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={creatingItem}>
+                  {creatingItem ? 'Creating...' : 'Create Item'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}

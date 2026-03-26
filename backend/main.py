@@ -89,8 +89,22 @@ def ensure_rbac_bootstrap():
             db.add(admin_role)
             db.commit()
 
+        # Create or update admin user
         admin_user = db.query(User).filter(User.username == "admin").first()
-        if admin_user and admin_user.role_id != super_admin_role.id:
+        if not admin_user:
+            # Create admin user if it doesn't exist
+            admin_user = User(
+                username="admin",
+                email="admin@hospital.local",
+                password_hash=hash_password("Admin@123456"),
+                role_id=super_admin_role.id,
+                is_active=True,
+                force_password_change=True
+            )
+            db.add(admin_user)
+            db.commit()
+        elif admin_user.role_id != super_admin_role.id:
+            # Update role if different
             admin_user.role_id = super_admin_role.id
             db.commit()
     finally:
@@ -101,10 +115,16 @@ security = HTTPBearer()
 # Initialize Database
 Base.metadata.create_all(bind=engine)
 
-# Mount frontend static files
-frontend_path = os.path.join(os.path.dirname(__file__), '..', 'frontend')
-if os.path.exists(frontend_path):
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+# Mount frontend static files from the active React app build when available.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+react_build_path = os.path.join(project_root, "react-app", "build")
+legacy_frontend_path = os.path.join(project_root, "frontend")
+react_static_path = os.path.join(react_build_path, "static")
+
+if os.path.exists(react_static_path):
+    app.mount("/static", StaticFiles(directory=react_static_path), name="static")
+elif os.path.exists(legacy_frontend_path):
+    app.mount("/static", StaticFiles(directory=legacy_frontend_path), name="static")
 
 
 def log_audit(db: Session, user_id: Optional[int], action: str, module: str, record_id: int,
@@ -189,6 +209,14 @@ def check_permission(user: User, permission: str, db: Session):
     """Check if user has permission"""
     role = db.query(Role).filter(Role.id == user.role_id).first()
     if not has_permission(role.name, permission):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
+def check_any_permission(user: User, permissions: list[str], db: Session):
+    """Allow access when the user has at least one of the supplied permissions."""
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    role_name = role.name if role else ""
+    if not any(has_permission(role_name, permission) for permission in permissions):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
 
@@ -967,7 +995,7 @@ def dispose_stock(request: DisposeStockRequest, current_user: User = Depends(get
 @app.post("/api/stock/adjust", response_model=MessageResponse)
 def adjust_stock(request: AdjustStockRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Manual stock adjustment (Authorized users only)"""
-    check_permission(current_user, "approve_adjustment", db)
+    check_permission(current_user, "adjust_stock", db)
     
     batch = db.query(ItemBatch).filter(ItemBatch.id == request.batch_id).first()
     if not batch:
@@ -1099,22 +1127,69 @@ def get_expiry_report(days_threshold: int = 30, current_user: User = Depends(get
 
 # ============ AUDIT LOG ENDPOINTS ============
 @app.get("/api/audit-logs", response_model=List[AuditLogResponse])
-def get_audit_logs(user_id: Optional[int] = None, action: Optional[str] = None, 
-                   limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_audit_logs(
+    user_id: Optional[int] = None,
+    action: Optional[str] = None,
+    module: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Get audit logs (Auditor/Admin only)"""
     check_permission(current_user, "view_audit_logs", db)
     
     # Validate limit parameter
     limit = min(max(limit, 1), 500)  # Between 1 and 500
     
-    query = db.query(AuditLog)
+    query = db.query(AuditLog, User.username).outerjoin(User, AuditLog.user_id == User.id)
     if user_id:
         query = query.filter(AuditLog.user_id == user_id)
     if action:
         query = query.filter(AuditLog.action == action)
+    if module:
+        query = query.filter(AuditLog.module == module)
+    if status:
+        query = query.filter(AuditLog.status == status)
+    if start_date:
+        query = query.filter(AuditLog.timestamp >= datetime.combine(start_date, datetime.min.time()))
+    if end_date:
+        query = query.filter(AuditLog.timestamp <= datetime.combine(end_date, datetime.max.time()))
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                AuditLog.action.ilike(search_term),
+                AuditLog.module.ilike(search_term),
+                AuditLog.status.ilike(search_term),
+                AuditLog.remarks.ilike(search_term),
+                AuditLog.old_value.ilike(search_term),
+                AuditLog.new_value.ilike(search_term),
+                User.username.ilike(search_term),
+            )
+        )
     
     logs = query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
-    return [AuditLogResponse.from_orm(log) for log in logs]
+    return [
+        AuditLogResponse(
+            id=log.id,
+            user_id=log.user_id,
+            username=username,
+            action=log.action,
+            module=log.module,
+            record_id=log.record_id,
+            old_value=log.old_value,
+            new_value=log.new_value,
+            status=log.status,
+            remarks=log.remarks,
+            ip_address=log.ip_address,
+            timestamp=log.timestamp,
+        )
+        for log, username in logs
+    ]
 
 
 # ============ ALERT ENDPOINTS ============
@@ -1335,7 +1410,7 @@ def get_dashboard(current_user: User = Depends(get_current_user), db: Session = 
 @app.get("/api/stock-movements")
 def get_stock_movements(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get all stock movements"""
-    check_permission(current_user, "view_stock_movements", db)
+    check_any_permission(current_user, ["view_stock_movements", "view_movement_report"], db)
     try:
         movements = db.query(
             StockMovement.id,
@@ -1347,7 +1422,7 @@ def get_stock_movements(current_user: User = Depends(get_current_user), db: Sess
             StockMovement.reference_number
         ).join(ItemBatch, StockMovement.batch_id == ItemBatch.id).join(
             Item, ItemBatch.item_id == Item.id
-        ).join(Location, StockMovement.location_id == Location.id).all()
+        ).join(Location, StockMovement.location_id == Location.id).order_by(StockMovement.created_at.desc()).all()
         
         return [{
             "id": m.id,
@@ -1482,7 +1557,7 @@ def get_reports(current_user: User = Depends(get_current_user), db: Session = De
 @app.get("/", include_in_schema=False)
 def serve_root():
     """Serve root index.html"""
-    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    frontend_dir = react_build_path if os.path.isdir(react_build_path) else legacy_frontend_path
     index_path = os.path.join(frontend_dir, "index.html")
     if os.path.isfile(index_path):
         return FileResponse(index_path, media_type="text/html")
@@ -1496,7 +1571,7 @@ def serve_frontend(file_path: str):
     if file_path.startswith("api") or file_path.startswith(".well-known"):
         raise HTTPException(status_code=404, detail="Not found")
     
-    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    frontend_dir = react_build_path if os.path.isdir(react_build_path) else legacy_frontend_path
     
     # Default to index.html if root is requested
     if not file_path or file_path == "":

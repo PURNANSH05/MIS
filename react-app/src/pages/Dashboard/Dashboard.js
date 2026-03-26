@@ -12,11 +12,14 @@ import {
   FiTrendingUp,
 } from 'react-icons/fi';
 import { dashboardAPI, reportsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
+import { downloadReport, formatDateTime } from '../../services/reportGenerator';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const { hasPermission } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,11 +32,23 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setError(null);
-      const [dashboardRes, reportsRes, activityRes] = await Promise.all([
+      const activityRequest =
+        hasPermission('view_stock_movements') || hasPermission('view_movement_report')
+          ? dashboardAPI.getRecentActivity()
+          : Promise.resolve({ data: [] });
+      const [dashboardResult, reportsResult, activityResult] = await Promise.allSettled([
         dashboardAPI.getDashboardData(),
         reportsAPI.getReports(),
-        dashboardAPI.getRecentActivity(),
+        activityRequest,
       ]);
+
+      if (dashboardResult.status !== 'fulfilled') {
+        throw dashboardResult.reason;
+      }
+
+      const dashboardRes = dashboardResult.value;
+      const reportsRes = reportsResult.status === 'fulfilled' ? reportsResult.value : { data: {} };
+      const activityRes = activityResult.status === 'fulfilled' ? activityResult.value : { data: [] };
 
       setDashboardData(dashboardRes.data);
 
@@ -71,6 +86,13 @@ const Dashboard = () => {
         reference: m.reference_number,
       }));
       setRecentActivities(mappedActivities);
+
+      if (reportsResult.status === 'rejected') {
+        console.warn('Dashboard reports fallback applied:', reportsResult.reason);
+      }
+      if (activityResult.status === 'rejected') {
+        console.warn('Dashboard recent activity fallback applied:', activityResult.reason);
+      }
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error('Dashboard error:', err);
@@ -86,21 +108,28 @@ const Dashboard = () => {
   };
 
   const handleExport = () => {
-    const rows = [
-      ['Metric', 'Value'],
-      ['Total Items', String(dashboardData?.total_items || 0)],
-      ['Low Stock Count', String(dashboardData?.low_stock_count || 0)],
-      ['Locations', String(dashboardData?.total_locations || 0)],
-      ['Expiring Soon', String(dashboardData?.expiring_soon_count || 0)],
-    ];
-    const csv = rows.map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'dashboard-summary.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const reportData = {
+      title: 'MEDICAL INVENTORY DASHBOARD SUMMARY',
+      subtitle: 'Comprehensive System Overview Report',
+      generatedAt: new Date(),
+      columns: ['Metric', 'Value'],
+      data: [
+        { Metric: 'Total Items in Inventory', Value: dashboardData?.total_items || 0 },
+        { Metric: 'Total Stock Value', Value: `₹${(dashboardData?.total_stock_value || 0).toFixed(2)}` },
+        { Metric: 'Low Stock Items', Value: dashboardData?.low_stock_count || 0 },
+        { Metric: 'Items Expiring Soon', Value: dashboardData?.expiring_soon_count || 0 },
+        { Metric: 'Total Locations', Value: dashboardData?.total_locations || 0 },
+        { Metric: 'System Batches', Value: dashboardData?.total_batches || 0 },
+      ],
+      summaryStats: [
+        { label: 'Report Type', value: 'Dashboard Summary' },
+        { label: 'Date Range', value: dateRange === '7days' ? 'Last 7 Days' : 'Current Period' },
+        { label: 'Data Status', value: 'Real-time' },
+      ],
+      footer: 'This is an official dashboard report. Please ensure proper authorization before distribution.',
+    };
+    
+    downloadReport(`dashboard-summary-${Date.now()}.csv`, reportData);
   };
 
   const handleDateRangeChange = (range) => {
@@ -112,7 +141,7 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const valueK = `$${((dashboardData?.total_stock_value || 0) / 1000).toFixed(1)}K`;
+  const valueK = `₹${((dashboardData?.total_stock_value || 0) / 1000).toFixed(1)}K`;
   const kpiData = [
     { title: 'Total Items', value: dashboardData?.total_items || 0, Icon: FiPackage },
     { title: 'Low Stock', value: dashboardData?.low_stock_count || 0, Icon: FiAlertTriangle },
@@ -180,7 +209,6 @@ const Dashboard = () => {
         }
       />
 
-      {/* Filters Panel */}
       {showFilters && (
         <div className="filters-panel">
           <div className="filters-grid">
@@ -224,7 +252,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* KPI Cards */}
       <div className="kpi-grid">
         {kpiData.map((kpi) => (
           <div key={kpi.title} className="kpi-card">
@@ -276,7 +303,7 @@ const Dashboard = () => {
                         {act.item}
                       </div>
                       <div className="dashboard-list-subtitle">
-                        {act.location} · {act.quantity > 0 ? <FiTrendingUp className="trend-up" /> : <FiTrendingDown className="trend-down" />} {act.quantity}
+                        {act.location} | {act.quantity > 0 ? <FiTrendingUp className="trend-up" /> : <FiTrendingDown className="trend-down" />} {act.quantity}
                       </div>
                     </div>
                   </li>

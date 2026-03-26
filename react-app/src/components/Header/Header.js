@@ -43,6 +43,11 @@ const Header = () => {
     };
   }, []);
 
+  const resolvedRole =
+    typeof user?.role === 'string'
+      ? user.role
+      : user?.role?.name || 'User';
+
   return (
     <header className="header">
       <div className="header-content">
@@ -91,7 +96,7 @@ const Header = () => {
               </div>
               <div className="user-info">
                 <div className="user-name">{user?.username}</div>
-                <div className="user-role">{user?.role?.name}</div>
+                <div className="user-role">{resolvedRole}</div>
               </div>
               <FiChevronDown className="dropdown-icon" />
             </button>

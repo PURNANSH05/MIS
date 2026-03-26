@@ -177,9 +177,11 @@ const Locations = () => {
           <button className="btn btn-outline btn-sm" onClick={fetchLocations}>
             <FiRefreshCw /> Refresh
           </button>
-          <button className="btn btn-primary btn-sm" onClick={openCreate}>
-            <FiPlus /> Add Location
-          </button>
+          {hasPermission('create_location') ? (
+            <button className="btn btn-primary btn-sm" onClick={openCreate}>
+              <FiPlus /> Add Location
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -205,11 +207,13 @@ const Locations = () => {
                 <tr key={loc.id}>
                   <td className="location-name">{loc.name}</td>
                   <td>{loc.location_type}</td>
-                  <td className="location-desc">{loc.description || '—'}</td>
+                  <td className="location-desc">{loc.description || '-'}</td>
                   <td className="actions-col">
-                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(loc)}>
-                      <FiEdit /> Edit
-                    </button>
+                    {hasPermission('update_location') ? (
+                      <button className="btn btn-outline btn-sm" onClick={() => openEdit(loc)}>
+                        <FiEdit /> Edit
+                      </button>
+                    ) : null}
                     {hasPermission('delete_location') ? (
                       <button className="btn btn-outline btn-sm" onClick={() => handleDelete(loc)} disabled={saving}>
                         <FiTrash2 /> Delete

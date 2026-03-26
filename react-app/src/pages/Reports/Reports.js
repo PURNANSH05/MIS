@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FiBarChart2, FiRefreshCw } from 'react-icons/fi';
+import { FiBarChart2, FiRefreshCw, FiDownload } from 'react-icons/fi';
 import { reportsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { downloadReport } from '../../services/reportGenerator';
 import './Reports.css';
 
 const Reports = () => {
@@ -52,6 +53,83 @@ const Reports = () => {
     await fetchAll();
   };
 
+  const handleExportStock = () => {
+    const reportData = {
+      title: 'STOCK REPORT',
+      subtitle: 'Complete Stock Inventory Overview',
+      generatedAt: new Date(),
+      columns: ['Item', 'SKU', 'Category', 'Total Quantity', 'Reorder Level'],
+      data: (stock || []).map((x) => ({
+        Item: x.item_name || x.name,
+        SKU: x.sku || '-',
+        Category: x.category || '-',
+        'Total Quantity': x.total_quantity ?? x.quantity ?? 0,
+        'Reorder Level': x.reorder_level ?? 0,
+      })),
+      summaryStats: [
+        { label: 'Total Items', value: (stock || []).length },
+        { label: 'Total Quantity', value: (stock || []).reduce((sum, x) => sum + (x.total_quantity ?? x.quantity ?? 0), 0) },
+        { label: 'Report Type', value: 'Stock Report' },
+      ],
+      footer: 'This stock report contains current inventory levels. Please verify accuracy before taking critical business decisions.',
+    };
+    
+    downloadReport(`stock-report-${Date.now()}.csv`, reportData);
+    toast.success('Stock report exported successfully');
+  };
+
+  const handleExportExpiry = () => {
+    const reportData = {
+      title: 'EXPIRY REPORT',
+      subtitle: 'Items with Expiration Dates and Status',
+      generatedAt: new Date(),
+      columns: ['Item', 'Batch Number', 'Location', 'Quantity', 'Expiry Date'],
+      data: (expiry || []).map((x) => ({
+        Item: x.item_name || x.name,
+        'Batch Number': x.batch_number || x.batch || '-',
+        Location: x.location_name || x.location || '-',
+        Quantity: x.quantity ?? 0,
+        'Expiry Date': x.expiry_date || '-',
+      })),
+      summaryStats: [
+        { label: 'Total Expiry Records', value: (expiry || []).length },
+        { label: 'Total Items Expiring', value: (expiry || []).reduce((sum, x) => sum + (x.quantity ?? 0), 0) },
+        { label: 'Report Type', value: 'Expiry Report' },
+        { label: 'Priority', value: 'HIGH - Review Immediately' },
+      ],
+      footer: 'This expiry report is critical. All expiring items must be reviewed and handled according to medical safety standards.',
+    };
+    
+    downloadReport(`expiry-report-${Date.now()}.csv`, reportData);
+    toast.success('Expiry report exported successfully');
+  };
+
+  const handleExportMovements = () => {
+    const reportData = {
+      title: 'STOCK MOVEMENT REPORT',
+      subtitle: 'Complete Transaction and Movement History',
+      generatedAt: new Date(),
+      columns: ['Timestamp', 'Movement Type', 'Item', 'Quantity', 'Location', 'Reference Number'],
+      data: (movements || []).map((m) => ({
+        Timestamp: m.created_at ? new Date(m.created_at).toLocaleString() : '-',
+        'Movement Type': m.movement_type,
+        Item: m.item_name || '-',
+        Quantity: m.quantity,
+        Location: m.location_name || '-',
+        'Reference Number': m.reference_number || '-',
+      })),
+      summaryStats: [
+        { label: 'Total Movements', value: (movements || []).length },
+        { label: 'Report Type', value: 'Movement Report' },
+        { label: 'Data Scope', value: 'All Transactions' },
+      ],
+      footer: 'This movement report provides a complete audit trail of all stock transactions.',
+    };
+    
+    downloadReport(`movements-report-${Date.now()}.csv`, reportData);
+    toast.success('Movement report exported successfully');
+  };
+
   if (!canViewAny) {
     return (
       <div className="reports-page">
@@ -79,6 +157,21 @@ const Reports = () => {
         </div>
 
         <div className="header-right">
+          {tab === 'stock' && (
+            <button className="btn btn-outline btn-sm" onClick={handleExportStock} disabled={!stock || stock.length === 0}>
+              <FiDownload /> Export Stock
+            </button>
+          )}
+          {tab === 'expiry' && (
+            <button className="btn btn-outline btn-sm" onClick={handleExportExpiry} disabled={!expiry || expiry.length === 0}>
+              <FiDownload /> Export Expiry
+            </button>
+          )}
+          {tab === 'movements' && (
+            <button className="btn btn-outline btn-sm" onClick={handleExportMovements} disabled={!movements || movements.length === 0}>
+              <FiDownload /> Export Movements
+            </button>
+          )}
           <button className="btn btn-outline btn-sm" onClick={handleRefresh} disabled={refreshing}>
             <FiRefreshCw /> {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -124,10 +217,10 @@ const Reports = () => {
                 (stock || []).map((x, idx) => (
                   <tr key={x.item_id || x.id || idx}>
                     <td>{x.item_name || x.name}</td>
-                    <td>{x.sku || '—'}</td>
-                    <td>{x.category || '—'}</td>
-                    <td>{x.total_quantity ?? x.quantity ?? '—'}</td>
-                    <td>{x.reorder_level ?? '—'}</td>
+                    <td>{x.sku || '-'}</td>
+                    <td>{x.category || '-'}</td>
+                    <td>{x.total_quantity ?? x.quantity ?? '-'}</td>
+                    <td>{x.reorder_level ?? '-'}</td>
                   </tr>
                 ))
               )}
@@ -157,10 +250,10 @@ const Reports = () => {
                 (expiry || []).map((x, idx) => (
                   <tr key={x.batch_id || x.id || idx}>
                     <td>{x.item_name || x.name}</td>
-                    <td>{x.batch_number || x.batch || '—'}</td>
-                    <td>{x.location_name || x.location || '—'}</td>
-                    <td>{x.quantity ?? '—'}</td>
-                    <td>{x.expiry_date || '—'}</td>
+                    <td>{x.batch_number || x.batch || '-'}</td>
+                    <td>{x.location_name || x.location || '-'}</td>
+                    <td>{x.quantity ?? '-'}</td>
+                    <td>{x.expiry_date || '-'}</td>
                   </tr>
                 ))
               )}
@@ -190,12 +283,12 @@ const Reports = () => {
               ) : (
                 (movements || []).map((m, idx) => (
                   <tr key={m.id || idx}>
-                    <td>{m.created_at ? new Date(m.created_at).toLocaleString() : '—'}</td>
+                    <td>{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
                     <td>{m.movement_type}</td>
-                    <td>{m.item_name || '—'}</td>
+                    <td>{m.item_name || '-'}</td>
                     <td>{m.quantity}</td>
-                    <td>{m.location_name || '—'}</td>
-                    <td>{m.reference_number || '—'}</td>
+                    <td>{m.location_name || '-'}</td>
+                    <td>{m.reference_number || '-'}</td>
                   </tr>
                 ))
               )}

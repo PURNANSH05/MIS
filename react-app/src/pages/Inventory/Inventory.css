@@ -1,62 +1,90 @@
 /* Inventory Page Styles */
 .inventory-page {
   padding: 0;
-  background: #f9fafb;
   min-height: 100vh;
 }
 
-/* Header */
-.inventory-header {
+.inventory-cta-card {
+  margin: 0 1rem 1.5rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid #e6edf5;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 2rem;
-  padding: 0 1rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
-  gap: 1rem;
 }
 
-.header-left {
+.inventory-cta-copy {
   flex: 1;
-  min-width: 300px;
+  min-width: 280px;
 }
 
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 0.5rem 0;
+.inventory-cta-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+  margin-bottom: 0.5rem;
 }
 
-.page-title svg {
-  color: #4ade80;
-  font-size: 1.5rem;
+.inventory-cta-copy h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  color: #111827;
 }
 
-.page-subtitle {
-  color: #6b7280;
-  font-size: 0.9rem;
+.inventory-cta-copy p {
   margin: 0;
+  max-width: 760px;
+  color: #475569;
+  line-height: 1.55;
 }
 
-.header-right {
+.inventory-cta-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.inventory-cta-points span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.inventory-cta-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.inventory-cta-note {
+  max-width: 260px;
+  padding: 0.9rem 1rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* Filters Panel */
 .filters-panel {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #e6edf5;
+  border-radius: 14px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
 
 .inventory-stats {
@@ -65,6 +93,29 @@
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 0 1rem;
+}
+
+.stat-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid #e6edf5;
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stat-value {
+  margin-top: 0.4rem;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .quick-filters {
@@ -76,23 +127,24 @@
 }
 
 .chip {
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #dbe4ee;
   background: #fff;
   border-radius: 999px;
   padding: 8px 12px;
   font-weight: 700;
+  color: #334155;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .chip:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: #f8fafc;
 }
 
 .chip.active {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.3);
-  color: rgb(22, 101, 52);
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .filters-grid {
@@ -252,10 +304,10 @@
 /* Medicines Table */
 .inventory-table-card {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #e6edf5;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
   margin: 0 1rem 2rem;
 }
 
@@ -274,14 +326,33 @@
 }
 
 .inventory-table thead th {
-  background: rgba(0, 0, 0, 0.02);
+  background: #f8fafc;
   font-weight: 700;
+  color: #334155;
 }
 
 .inventory-empty {
   padding: 18px;
   text-align: center;
   color: rgba(0, 0, 0, 0.6);
+}
+
+.inventory-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 0.5rem;
+}
+
+.inventory-empty-state strong {
+  color: #111827;
+  font-size: 1rem;
+}
+
+.inventory-empty-state span {
+  max-width: 520px;
+  color: #6b7280;
 }
 
 .medicine-name {
@@ -394,6 +465,72 @@
   color: rgba(0, 0, 0, 0.65);
 }
 
+.modal-subtitle-tight {
+  margin: 6px 0 0;
+}
+
+.inventory-create-modal {
+  width: min(760px, 100%);
+}
+
+.inventory-create-form {
+  padding-top: 18px;
+}
+
+.inventory-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.1rem;
+}
+
+.inventory-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.inventory-field label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.inventory-field-wide {
+  grid-column: 1 / -1;
+}
+
+.inventory-input {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #111827;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.inventory-input:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
+}
+
+.inventory-input-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.inventory-textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.inventory-create-actions {
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 .batches-table-card {
   border: 1px solid #eef2f7;
   border-radius: 12px;
@@ -486,14 +623,14 @@
 }
 
 .btn-primary {
-  background: #4ade80;
-  color: #065f46;
-  border-color: #4ade80;
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 .btn-outline {
@@ -526,19 +663,18 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .inventory-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
+  .inventory-cta-card {
+    padding: 1.2rem;
   }
-  
-  .header-left {
-    min-width: 100%;
-  }
-  
-  .header-right {
-    flex-direction: column;
+
+  .inventory-cta-actions {
     width: 100%;
+    justify-content: stretch;
+  }
+
+  .inventory-cta-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .filters-panel {
@@ -573,13 +709,13 @@
   .items-container.list {
     grid-template-columns: 1fr;
   }
+
+  .inventory-create-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
-  .inventory-header {
-    padding: 0 0.5rem;
-  }
-  
   .filters-panel {
     padding: 0.75rem;
   }
@@ -607,5 +743,14 @@
   
   .pagination {
     padding: 0 0.5rem;
+  }
+
+  .inventory-cta-card {
+    margin: 0 0.5rem 1rem;
+    border-radius: 14px;
+  }
+
+  .inventory-cta-copy h2 {
+    font-size: 1.15rem;
   }
 }

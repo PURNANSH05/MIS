@@ -9,24 +9,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# PostgreSQL Database Configuration
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "medical_inventory")
+# Database Configuration - Support both SQLite (development) and PostgreSQL (production)
+DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
 
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# Connection pooling with proper timeout settings
-engine = create_engine(
-    DATABASE_URL, 
-    pool_pre_ping=True, 
-    pool_recycle=3600,
-    echo=False,
-    pool_size=10,
-    max_overflow=20
-)
+if DB_TYPE == "postgresql":
+    # PostgreSQL Database Configuration (Production)
+    DB_USER = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    DB_NAME = os.getenv("DB_NAME", "medical_inventory")
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    
+    # Connection pooling with proper timeout settings
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_pre_ping=True, 
+        pool_recycle=3600,
+        echo=False,
+        pool_size=10,
+        max_overflow=20
+    )
+else:
+    # SQLite Database Configuration (Development - No PostgreSQL needed!)
+    db_path = os.path.join(os.path.dirname(__file__), "medical_inventory.db")
+    DATABASE_URL = f"sqlite:///{db_path}"
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

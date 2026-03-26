@@ -1,14 +1,14 @@
 /* User Dropdown Styles */
 .user-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 10px);
   right: 0;
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.16);
   z-index: 1000;
-  min-width: 200px;
+  min-width: 240px;
   overflow: hidden;
 }
 
@@ -18,7 +18,7 @@
   gap: 0.75rem;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
 }
 
 .user-dropdown-avatar {
@@ -41,8 +41,8 @@
 }
 
 .user-dropdown-name {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #1f2937;
   margin: 0 0 0.25rem 0;
   line-height: 1.2;
@@ -83,6 +83,15 @@
 .user-dropdown-item:hover {
   background: #f9fafb;
   color: #1f2937;
+}
+
+.user-dropdown-item.static {
+  cursor: default;
+}
+
+.user-dropdown-item.static:hover {
+  background: transparent;
+  color: #374151;
 }
 
 .user-dropdown-item.danger {
@@ -142,7 +151,7 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .user-dropdown {
-    min-width: 180px;
+    min-width: 220px;
   }
   
   .user-dropdown-header {

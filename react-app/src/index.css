@@ -49,8 +49,8 @@
   --danger-color: var(--error);
 
   /* Layout tokens */
-  --sidebar-width: 200px;
-  --sidebar-width-collapsed: 60px;
+  --sidebar-width: 248px;
+  --sidebar-width-collapsed: 88px;
 
   /* Font weights */
   --font-light: 300;

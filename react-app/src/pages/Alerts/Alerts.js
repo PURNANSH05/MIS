@@ -7,6 +7,7 @@ import './Alerts.css';
 
 const Alerts = () => {
   const { hasPermission } = useAuth();
+  const canAcknowledgeAlerts = hasPermission('acknowledge_alerts') || hasPermission('manage_alerts');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ackLoadingId, setAckLoadingId] = useState(null);
@@ -53,7 +54,7 @@ const Alerts = () => {
   };
 
   const acknowledge = async (alertId) => {
-    if (!hasPermission('manage_alerts')) {
+    if (!canAcknowledgeAlerts) {
       toast.error('Permission denied');
       return;
     }
@@ -172,7 +173,7 @@ const Alerts = () => {
                     </span>
                   </td>
                   <td className="actions-col">
-                    {!a.is_acknowledged && hasPermission('manage_alerts') ? (
+                    {!a.is_acknowledged && canAcknowledgeAlerts ? (
                       <button className="btn btn-outline btn-sm" onClick={() => acknowledge(a.id)} disabled={ackLoadingId === a.id}>
                         <FiCheckCircle /> {ackLoadingId === a.id ? 'Saving...' : 'Acknowledge'}
                       </button>
